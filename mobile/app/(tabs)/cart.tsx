@@ -16,13 +16,10 @@ import * as Sentry from "@sentry/react-native";
 const CartScreen = () => {
   const api = useApi();
   const {
-    addToCart,
-    isAddingToCart,
     cart,
     cartItemCount,
     cartTotal,
     clearCart,
-    isClearing,
     isError,
     isLoading,
     isRemoving,

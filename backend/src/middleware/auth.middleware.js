@@ -7,9 +7,11 @@ export const protectRoute = [
   async (req, res, next) => {
     try {
       const clerkId = req.auth().userId;
+      console.log("[protectRoute] clerkId:", clerkId);
       if (!clerkId) return res.status(401).json({ message: "Unauthorized - invalid token" });
 
       let user = await User.findOne({ clerkId });
+      console.log("[protectRoute] local user found:", !!user);
 
       // If user is not found in our DB, try to fetch from Clerk and create a local user record
       if (!user) {
@@ -20,6 +22,8 @@ export const protectRoute = [
               "Content-Type": "application/json",
             },
           });
+
+          console.log("[protectRoute] Clerk fetch status:", resp.status);
 
           if (resp.ok) {
             const clerkUser = await resp.json();
@@ -36,12 +40,13 @@ export const protectRoute = [
               imageUrl,
               clerkId,
             });
-            console.log("Created local user for clerkId:", clerkId);
+            console.log("[protectRoute] Created local user for clerkId:", clerkId, "userId:", user._id);
           } else {
-            console.warn("Failed to fetch user from Clerk for clerkId:", clerkId, await resp.text());
+            const text = await resp.text();
+            console.warn("[protectRoute] Failed to fetch user from Clerk for clerkId:", clerkId, "status:", resp.status, "body:", text);
           }
         } catch (fetchErr) {
-          console.error("Error fetching user from Clerk:", fetchErr);
+          console.error("[protectRoute] Error fetching user from Clerk:", fetchErr);
         }
       }
 

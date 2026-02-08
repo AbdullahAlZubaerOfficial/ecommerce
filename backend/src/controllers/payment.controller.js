@@ -32,12 +32,11 @@ export async function createPaymentIntent(req, res) {
       }
 
       subtotal += product.price * item.quantity;
+      // keep metadata small: only include product id, quantity and price
       validatedItems.push({
         product: product._id.toString(),
-        name: product.name,
         price: product.price,
         quantity: item.quantity,
-        image: product.images[0],
       });
     }
 
@@ -80,6 +79,7 @@ export async function createPaymentIntent(req, res) {
       metadata: {
         clerkId: user.clerkId,
         userId: user._id.toString(),
+        // orderItems stored compactly as [{product,price,quantity},...]
         orderItems: JSON.stringify(validatedItems),
         shippingAddress: JSON.stringify(shippingAddress),
         totalPrice: total.toFixed(2),
@@ -87,13 +87,7 @@ export async function createPaymentIntent(req, res) {
       // in the webhooks section we will use this metadata
     });
 
-    // return client secret and payment intent id so clients can create the order after payment
-    res.status(200).json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-      totalPrice: total.toFixed(2),
-      orderItems: validatedItems,
-    });
+    res.status(200).json({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
     console.error("Error creating payment intent:", error);
     res.status(500).json({ error: "Failed to create payment intent" });
@@ -126,11 +120,31 @@ export async function handleWebhook(req, res) {
         return res.json({ received: true });
       }
 
+      // rebuild full order items from compact metadata by fetching product details
+      const compactItems = JSON.parse(orderItems);
+      const fullOrderItems = [];
+
+      for (const ci of compactItems) {
+        const product = await Product.findById(ci.product);
+        if (!product) {
+          console.warn("Product from metadata not found:", ci.product);
+          continue;
+        }
+
+        fullOrderItems.push({
+          product: product._id,
+          name: product.name,
+          price: product.price,
+          quantity: ci.quantity,
+          image: product.images[0] || "",
+        });
+      }
+
       // create order
       const order = await Order.create({
         user: userId,
         clerkId,
-        orderItems: JSON.parse(orderItems),
+        orderItems: fullOrderItems,
         shippingAddress: JSON.parse(shippingAddress),
         paymentResult: {
           id: paymentIntent.id,
@@ -140,8 +154,7 @@ export async function handleWebhook(req, res) {
       });
 
       // update product stock
-      const items = JSON.parse(orderItems);
-      for (const item of items) {
+      for (const item of fullOrderItems) {
         await Product.findByIdAndUpdate(item.product, {
           $inc: { stock: -item.quantity },
         });

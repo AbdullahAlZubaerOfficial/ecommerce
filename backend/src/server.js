@@ -63,6 +63,14 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Simple request logger to help debug incoming API calls
+app.use((req, res, next) => {
+  console.log(`[REQ] ${req.method} ${req.originalUrl} - headers:`, {
+    authorization: req.headers.authorization ? "present" : "missing",
+  });
+  next();
+});
+
 app.use("/api/inngest", serve({ client: inngest, functions }));
 
 app.use("/api/admin", adminRoutes);

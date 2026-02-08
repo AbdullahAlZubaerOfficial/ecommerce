@@ -57,7 +57,7 @@ const queryClient = new QueryClient({
 
 export default Sentry.wrap(function RootLayout() {
   return (
-    <ClerkProvider tokenCache={tokenCache}>
+    <ClerkProvider tokenCache={tokenCache} publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}>
       <QueryClientProvider client={queryClient}>
         <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!}>
           <Stack screenOptions={{ headerShown: false }} />

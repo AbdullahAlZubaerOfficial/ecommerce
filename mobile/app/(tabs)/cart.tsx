@@ -136,10 +136,44 @@ const CartScreen = () => {
           itemCount: cartItems.length,
         });
 
-        Alert.alert("Success", "Your payment was successful! Your order is being processed.", [
-          { text: "OK", onPress: () => {} },
-        ]);
-        clearCart();
+        // create order on backend (we rely on payment success from PaymentSheet)
+        try {
+          const orderPayload = {
+            orderItems: data.orderItems || cartItems,
+            shippingAddress: {
+              fullName: selectedAddress.fullName,
+              streetAddress: selectedAddress.streetAddress,
+              city: selectedAddress.city,
+              state: selectedAddress.state,
+              zipCode: selectedAddress.zipCode,
+              phoneNumber: selectedAddress.phoneNumber,
+            },
+            paymentResult: {
+              id: data.paymentIntentId,
+              status: "succeeded",
+            },
+            totalPrice: data.totalPrice || total.toFixed(2),
+          };
+
+          await api.post("/orders", orderPayload);
+
+          Alert.alert("Success", "Your payment was successful! Your order is being processed.", [
+            { text: "OK", onPress: () => {} },
+          ]);
+
+          clearCart();
+        } catch (orderError) {
+          Sentry.logger.error("Order creation failed", {
+            error: orderError instanceof Error ? orderError.message : orderError,
+            paymentIntentId: data.paymentIntentId,
+          });
+
+          Alert.alert(
+            "Warning",
+            "Payment succeeded but creating order failed. We'll reconcile it on the server.",
+            [{ text: "OK" }]
+          );
+        }
       }
     } catch (error) {
       Sentry.logger.error("Payment failed", {

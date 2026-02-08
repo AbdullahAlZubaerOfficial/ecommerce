@@ -87,7 +87,13 @@ export async function createPaymentIntent(req, res) {
       // in the webhooks section we will use this metadata
     });
 
-    res.status(200).json({ clientSecret: paymentIntent.client_secret });
+    // return client secret and payment intent id so clients can create the order after payment
+    res.status(200).json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      totalPrice: total.toFixed(2),
+      orderItems: validatedItems,
+    });
   } catch (error) {
     console.error("Error creating payment intent:", error);
     res.status(500).json({ error: "Failed to create payment intent" });
